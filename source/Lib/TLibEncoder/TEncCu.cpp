@@ -45,6 +45,7 @@
 #include <algorithm>
 using namespace std;
 
+extern int depthMatrix[25][40];
 
 //! \ingroup TLibEncoder
 //! \{
@@ -232,14 +233,28 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
 {
   // initialize CU data
   m_ppcBestCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );
-  m_ppcTempCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );
-
+  m_ppcTempCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );  
+  int ctuDepth;
+  int maxDepth = 0;
+  
   // analysis of CU
   DEBUG_STRING_NEW(sDebug)
-
+  
+  //int heightCTU = pcPic->getFrameHeightInCtus();
+  //int widthCTU = pcPic->getFrameWidthInCtus();
+  int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
+  int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus(); 
+   
   xCompressCU( m_ppcBestCU[0], m_ppcTempCU[0], 0 DEBUG_STRING_PASS_INTO(sDebug) );
   DEBUG_STRING_OUTPUT(std::cout, sDebug)
-
+          
+  for(int i=0;i<256; i++) {
+    ctuDepth = (int)pCtu->getDepth(i);
+    if (ctuDepth > maxDepth)
+        maxDepth = ctuDepth;
+  }
+  depthMatrix[ctuPosY][ctuPosX] = maxDepth;
+          
 #if ADAPTIVE_QP_SELECTION
   if( m_pcEncCfg->getUseAdaptQpSelect() )
   {
@@ -248,7 +263,8 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
       xCtuCollectARLStats( pCtu );
     }
   }
-#endif
+#endif  
+  
 }
 /** \param  pCtu  pointer of CU data class
  */
@@ -464,7 +480,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   Bool isAddLowestQP = false;
 
   const UInt numberValidComponents = rpcBestCU->getPic()->getNumberValidComponents();
-
+//
   if( uiDepth <= pps.getMaxCuDQPDepth() )
   {
     Int idQP = m_pcEncCfg->getMaxDeltaQP();
@@ -511,7 +527,42 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   TComSlice * pcSlice = rpcTempCU->getPic()->getSlice(rpcTempCU->getPic()->getCurrSliceIdx());
 
   const Bool bBoundary = !( uiRPelX < sps.getPicWidthInLumaSamples() && uiBPelY < sps.getPicHeightInLumaSamples() );
-
+  //------------------------------------MODIFICACOES----------------------------------------------
+  /** 	uiDepth vem como parametro
+   *		uiDepth == 0, cu=64 / PU=64
+   *		uiDepth == 1, cu=32 / PU=32
+   *		uiDepth == 2, cu=16 / PU=16
+   *		uiDepth == 3, cu=8  / PU=8 ou PU=4
+   **/
+  
+  bool splitCU = true;
+  bool allow4x4 = true;
+  static float UPPER_BAND = 0.25;
+  static float LOWER_BAND = 0.75;
+  float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
+  float posV = uiTPelY; //posicao vertical da CU atual
+  float band = posV/frameHeight;
+  
+  if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
+    /*if ( uiDepth == 0 ) 
+  	splitCU = false; 
+    if ( uiDepth == 1 )
+        splitCU = false;
+    if ( uiDepth == 2)
+        splitCU = false;*/
+    if ( uiDepth == 3 ) {
+        allow4x4 = false;
+        splitCU = false;
+    }
+  }
+  else {
+    splitCU = true;
+    allow4x4 = true;
+  }
+  
+  //depthMatrix[ctuPosY][ctuPosX] = maxDepth;
+  //cout << depthMatrix[ctuPosY][ctuPosX] << endl;
+  
   if ( !bBoundary )
   {
     for (Int iQP=iMinQP; iQP<=iMaxQP; iQP++)
@@ -731,7 +782,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
 #endif
           }
         }
-
+        // INTRA !!!!!
         // do normal intra modes
         // speedup for inter frames
         if((rpcBestCU->getSlice()->getSliceType() == I_SLICE)                                        ||
@@ -743,16 +794,20 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
         {
           xCheckRDCostIntra( rpcBestCU, rpcTempCU, SIZE_2Nx2N DEBUG_STRING_PASS_INTO(sDebug) );
           rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
-          if( uiDepth == sps.getLog2DiffMaxMinCodingBlockSize() )
-          {
-            if( rpcTempCU->getWidth(0) > ( 1 << sps.getQuadtreeTULog2MinSize() ) )
+          
+        if ( splitCU == true && allow4x4 == true )//entra aqui quando a PU for 4x4
+        {
+            if( uiDepth == sps.getLog2DiffMaxMinCodingBlockSize() )
             {
-              xCheckRDCostIntra( rpcBestCU, rpcTempCU, SIZE_NxN DEBUG_STRING_PASS_INTO(sDebug)   );
-              rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
-            }
-          }
+                if( rpcTempCU->getWidth(0) > ( 1 << sps.getQuadtreeTULog2MinSize() ) )
+              {    
+                xCheckRDCostIntra( rpcBestCU, rpcTempCU, SIZE_NxN DEBUG_STRING_PASS_INTO(sDebug)   );
+                rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
+              }
+            }        
+        }//fecha if
         }
-
+        
         // test PCM
         if(sps.getUsePCM()
           && rpcTempCU->getWidth(0) <= (1<<sps.getPCMLog2MaxSize())
@@ -826,9 +881,12 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   {
     iMaxQP = iMinQP; // If all TUs are forced into using transquant bypass, do not loop here.
   }
-
+  
   const Bool bSubBranch = bBoundary || !( m_pcEncCfg->getUseEarlyCU() && rpcBestCU->getTotalCost()!=MAX_DOUBLE && rpcBestCU->isSkipped(0) );
-
+  
+  if( splitCU == true )
+  {		// open split
+  
   if( bSubBranch && uiDepth < sps.getLog2DiffMaxMinCodingBlockSize() && (!getFastDeltaQp() || uiWidth > fastDeltaQPCuMaxSize || bBoundary))
   {
     // further split
@@ -976,10 +1034,12 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
     }
   }
 
+  }//close split
+  
   DEBUG_STRING_APPEND(sDebug_, sDebug);
 
   rpcBestCU->copyToPic(uiDepth);                                                     // Copy Best data to Picture for next partition prediction.
-
+  
   xCopyYuv2Pic( rpcBestCU->getPic(), rpcBestCU->getCtuRsAddr(), rpcBestCU->getZorderIdxInCtu(), uiDepth, uiDepth );   // Copy Yuv data to picture Yuv
   if (bBoundary)
   {

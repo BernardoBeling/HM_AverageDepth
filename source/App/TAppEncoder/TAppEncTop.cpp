@@ -475,7 +475,7 @@ Void TAppEncTop::xInitLib(Bool isFieldCoding)
  .
  */
 Void TAppEncTop::encode()
-{
+{  
   fstream bitstreamFile(m_bitstreamFileName.c_str(), fstream::binary | fstream::out);
   if (!bitstreamFile)
   {

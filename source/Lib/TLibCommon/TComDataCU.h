@@ -203,7 +203,7 @@ public:
   UInt          getZorderIdxInCtu             ( ) const                                                    { return m_absZIdxInCtu;                     }
   UInt          getCUPelX                     ( ) const                                                    { return m_uiCUPelX;                         }
   UInt          getCUPelY                     ( ) const                                                    { return m_uiCUPelY;                         }
-
+ 
   UChar*        getDepth                      ( )                                                          { return m_puhDepth;                         }
   UChar         getDepth                      ( UInt uiIdx ) const                                         { return m_puhDepth[uiIdx];                  }
   Void          setDepth                      ( UInt uiIdx, UChar uh )                                     { m_puhDepth[uiIdx] = uh;                    }

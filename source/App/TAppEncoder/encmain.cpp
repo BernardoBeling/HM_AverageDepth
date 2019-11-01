@@ -48,11 +48,15 @@
 // ====================================================================================================================
 // Main function
 // ====================================================================================================================
+int depthMatrix[25][40];
 
 int main(int argc, char* argv[])
-{
-  TAppEncTop  cTAppEncTop;
-
+{  
+  for(int k=0;k<25;k++)
+      for(int j=0;j<40;j++)
+          depthMatrix[k][j]=0;
+  TAppEncTop  cTAppEncTop;    
+  
   // print information
   fprintf( stdout, "\n" );
   fprintf( stdout, "HM software: Encoder Version [%s] (including RExt)", NV_VERSION );
@@ -62,7 +66,7 @@ int main(int argc, char* argv[])
   fprintf( stdout, "\n\n" );
 
   // create application encoder class
-  cTAppEncTop.create();
+  cTAppEncTop.create();  
 
   // parse configuration
   try
@@ -103,7 +107,12 @@ int main(int argc, char* argv[])
 
   // destroy application encoder class
   cTAppEncTop.destroy();
-
+  for(int i=0;i<25;i++) {
+      cout << "\n";
+      for(int j=0;j<40;j++)
+          cout << depthMatrix[i][j];      
+  }
+  cout << "\n=================================" << endl;
   return 0;
 }
 
