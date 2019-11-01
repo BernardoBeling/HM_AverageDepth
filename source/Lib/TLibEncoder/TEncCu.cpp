@@ -45,7 +45,7 @@
 #include <algorithm>
 using namespace std;
 
-extern int depthMatrix[25][40];
+extern int depthMatrix[100][200];
 
 //! \ingroup TLibEncoder
 //! \{
@@ -234,22 +234,26 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
   // initialize CU data
   m_ppcBestCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );
   m_ppcTempCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );  
-  int ctuDepth;
-  int maxDepth = 0;
   
   // analysis of CU
   DEBUG_STRING_NEW(sDebug)
-  
-  //int heightCTU = pcPic->getFrameHeightInCtus();
-  //int widthCTU = pcPic->getFrameWidthInCtus();
-  int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
-  int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus(); 
    
   xCompressCU( m_ppcBestCU[0], m_ppcTempCU[0], 0 DEBUG_STRING_PASS_INTO(sDebug) );
   DEBUG_STRING_OUTPUT(std::cout, sDebug)
           
-  for(int i=0;i<256; i++) {
+  /*******Matriz de profundidade*******/
+  int ctuDepth;
+  int maxDepth = 0;
+  int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
+  int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus();
+  int h = pCtu->getTotalNumPart();
+  for(int i=0;i<h; i++) {
     ctuDepth = (int)pCtu->getDepth(i);
+    if (ctuDepth == 3) {
+        int part = pCtu->getPartitionSize(i);
+        if(part != 0)
+            maxDepth = 4;
+    }
     if (ctuDepth > maxDepth)
         maxDepth = ctuDepth;
   }
