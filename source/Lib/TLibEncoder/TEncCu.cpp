@@ -241,23 +241,26 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
   xCompressCU( m_ppcBestCU[0], m_ppcTempCU[0], 0 DEBUG_STRING_PASS_INTO(sDebug) );
   DEBUG_STRING_OUTPUT(std::cout, sDebug)
           
-  /*******Matriz de profundidade*******/
-  int ctuDepth;
-  int maxDepth = 0;
-  int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
-  int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus();
-  int h = pCtu->getTotalNumPart();
-  for(int i=0;i<h; i++) {
-    ctuDepth = (int)pCtu->getDepth(i);
-    if (ctuDepth == 3) {
-        int part = pCtu->getPartitionSize(i);
-        if(part != 0)
-            maxDepth = 4;
+  if(pCtu->getPic()->getPOC() % 5 == 0) {
+    /*******Atualiza Matriz de profundidade*******/
+    int ctuDepth;
+    int maxDepth = 0;
+    int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
+    int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus();
+    int h = pCtu->getTotalNumPart();
+    for(int i=0;i<h; i++) {
+      ctuDepth = (int)pCtu->getDepth(i);
+      if (ctuDepth == 3) {
+          int part = pCtu->getPartitionSize(i);
+          if(part != 0)
+              maxDepth = 4;
+      }
+      if (ctuDepth > maxDepth)
+          maxDepth = ctuDepth;
     }
-    if (ctuDepth > maxDepth)
-        maxDepth = ctuDepth;
+
+    depthMatrix[ctuPosY][ctuPosX] = maxDepth;
   }
-  depthMatrix[ctuPosY][ctuPosX] = maxDepth;
           
 #if ADAPTIVE_QP_SELECTION
   if( m_pcEncCfg->getUseAdaptQpSelect() )
@@ -531,7 +534,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   TComSlice * pcSlice = rpcTempCU->getPic()->getSlice(rpcTempCU->getPic()->getCurrSliceIdx());
 
   const Bool bBoundary = !( uiRPelX < sps.getPicWidthInLumaSamples() && uiBPelY < sps.getPicHeightInLumaSamples() );
-  //------------------------------------MODIFICACOES----------------------------------------------
+  //------------------------------------MODIFICACOES--------------------------------------------------//
   /** 	uiDepth vem como parametro
    *		uiDepth == 0, cu=64 / PU=64
    *		uiDepth == 1, cu=32 / PU=32
@@ -541,19 +544,26 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   
   bool splitCU = true;
   bool allow4x4 = true;
-  static float UPPER_BAND = 0.25;
-  static float LOWER_BAND = 0.75;
-  float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
-  float posV = uiTPelY; //posicao vertical da CU atual
-  float band = posV/frameHeight;
+  //static float UPPER_BAND = 0.25;
+  //static float LOWER_BAND = 0.75;
+  //float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
+  //float posV = uiTPelY; //posicao vertical da CU atual
+  //float band = posV/frameHeight;
   
-  if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
-    /*if ( uiDepth == 0 ) 
+  if(rpcBestCU->getPic()->getPOC() % 5 != 0) { //ENTRA PARA LIMITAR OS QUADROS DO SEMIGOP
+      int ctuPosY = rpcBestCU->getCtuRsAddr()/rpcBestCU->getPic()->getFrameWidthInCtus(); 
+      int ctuPosX = rpcBestCU->getCtuRsAddr()-rpcBestCU->getPic()->getFrameWidthInCtus();
+      
+      if(uiDepth > depthMatrix[ctuPosY][ctuPosX]) //limita aqui
+          splitCU = false;
+  }      
+  /*if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
+    //if ( uiDepth == 0 ) 
   	splitCU = false; 
     if ( uiDepth == 1 )
         splitCU = false;
     if ( uiDepth == 2)
-        splitCU = false;*/
+        splitCU = false;//
     if ( uiDepth == 3 ) {
         allow4x4 = false;
         splitCU = false;
@@ -562,11 +572,8 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   else {
     splitCU = true;
     allow4x4 = true;
-  }
-  
-  //depthMatrix[ctuPosY][ctuPosX] = maxDepth;
-  //cout << depthMatrix[ctuPosY][ctuPosX] << endl;
-  
+  }*/
+  //-------------------------------------------END----------------------------------------------------//
   if ( !bBoundary )
   {
     for (Int iQP=iMinQP; iQP<=iMaxQP; iQP++)
