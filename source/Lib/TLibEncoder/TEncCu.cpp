@@ -544,26 +544,27 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   
   bool splitCU = true;
   bool allow4x4 = true;
-  //static float UPPER_BAND = 0.25;
-  //static float LOWER_BAND = 0.75;
-  //float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
-  //float posV = uiTPelY; //posicao vertical da CU atual
-  //float band = posV/frameHeight;
-  
-  if(rpcBestCU->getPic()->getPOC() % 5 != 0) { //ENTRA PARA LIMITAR OS QUADROS DO SEMIGOP
+    
+  if(rpcBestCU->getPic()->getPOC() % semiGOP != 0) { //ENTRA PARA LIMITAR OS QUADROS DO SEMIGOP
       int ctuPosY = rpcBestCU->getCtuRsAddr()/rpcBestCU->getPic()->getFrameWidthInCtus(); 
-      int ctuPosX = rpcBestCU->getCtuRsAddr()-rpcBestCU->getPic()->getFrameWidthInCtus();
+      int ctuPosX = rpcBestCU->getCtuRsAddr()-ctuPosY*rpcBestCU->getPic()->getFrameWidthInCtus();
       
-      if(uiDepth > depthMatrix[ctuPosY][ctuPosX]) //limita aqui
-          splitCU = false;
+      if(uiDepth >= depthMatrix[ctuPosY][ctuPosX]) { //limita aqui
+          splitCU = false;          
+      }
   }      
-  /*if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
-    //if ( uiDepth == 0 ) 
+  /*static float UPPER_BAND = 0.25;
+    static float LOWER_BAND = 0.75;
+    float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
+    float posV = uiTPelY; //posicao vertical da CU atual
+    float band = posV/frameHeight;
+    if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
+    if ( uiDepth == 0 ) 
   	splitCU = false; 
     if ( uiDepth == 1 )
         splitCU = false;
     if ( uiDepth == 2)
-        splitCU = false;//
+        splitCU = false;
     if ( uiDepth == 3 ) {
         allow4x4 = false;
         splitCU = false;
@@ -572,8 +573,9 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   else {
     splitCU = true;
     allow4x4 = true;
-  }*/
+  } Modificacoes das codificacoes por BANDA*/
   //-------------------------------------------END----------------------------------------------------//
+  
   if ( !bBoundary )
   {
     for (Int iQP=iMinQP; iQP<=iMaxQP; iQP++)
