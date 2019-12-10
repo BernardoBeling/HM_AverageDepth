@@ -45,7 +45,7 @@
 #include <algorithm>
 using namespace std;
 
-extern int depthMatrix[100][200];
+extern float depthMatrix[100][200];
 
 //! \ingroup TLibEncoder
 //! \{
@@ -202,6 +202,14 @@ Void TEncCu::destroy()
   }
 }
 
+int roundDepth (float newDepth) {
+    float frac = newDepth-(int)newDepth;
+    if(frac < roundConst)
+        return (int)newDepth;
+    else
+        return (int)newDepth+1;
+}
+
 /** \param    pcEncTop      pointer of encoder class
  */
 Void TEncCu::init( TEncTop* pcEncTop )
@@ -241,14 +249,13 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
   xCompressCU( m_ppcBestCU[0], m_ppcTempCU[0], 0 DEBUG_STRING_PASS_INTO(sDebug) );
   DEBUG_STRING_OUTPUT(std::cout, sDebug)
           
-  if(pCtu->getPic()->getPOC() % 5 == 0) {
-    /*******Atualiza Matriz de profundidade*******/
-    int ctuDepth;
-    int maxDepth = 0;
-    int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
-    int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus();
-    int h = pCtu->getTotalNumPart();
-    for(int i=0;i<h; i++) {
+  /****************Begin******************/
+  int ctuDepth;
+  int maxDepth = 0;
+  int ctuPosY = pCtu->getCtuRsAddr()/pCtu->getPic()->getFrameWidthInCtus();
+  int ctuPosX = pCtu->getCtuRsAddr()-ctuPosY*pCtu->getPic()->getFrameWidthInCtus();
+  int h = pCtu->getTotalNumPart();
+   for(int i=0;i<h; i++) {
       ctuDepth = (int)pCtu->getDepth(i);
       if (ctuDepth == 3) {
           int part = pCtu->getPartitionSize(i);
@@ -258,10 +265,26 @@ Void TEncCu::compressCtu( TComDataCU* pCtu )
       if (ctuDepth > maxDepth)
           maxDepth = ctuDepth;
     }
-
-    depthMatrix[ctuPosY][ctuPosX] = maxDepth;
+  /*******Update matrix for semigop reference frames*******/         
+  if(pCtu->getPic()->getPOC() % semiGOP == 0) {
+    depthMatrix[ctuPosY][ctuPosX] = (float)maxDepth;
   }
-          
+  /*******Update matrix with the average of the current semigop******/
+  else {
+      float oldDepth = depthMatrix[ctuPosY][ctuPosX];
+      float newDepth = (maxDepth+oldDepth)/2;
+      depthMatrix[ctuPosY][ctuPosX] = newDepth;
+  }
+  
+  /*if(ctuPosY == 24 && ctuPosX == 39) {
+      cout << "\n=============== MATRIX: " << (pCtu->getPic()->getPOC() % semiGOP) <<" ======================" << endl;
+      for(int i=0;i<25;i++) {
+      cout << "\n";
+      for(int j=0;j<40;j++)
+          cout << depthMatrix[i][j] << ",";      
+        }
+  }*/
+  
 #if ADAPTIVE_QP_SELECTION
   if( m_pcEncCfg->getUseAdaptQpSelect() )
   {
@@ -549,26 +572,28 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
       int ctuPosY = rpcBestCU->getCtuRsAddr()/rpcBestCU->getPic()->getFrameWidthInCtus(); 
       int ctuPosX = rpcBestCU->getCtuRsAddr()-ctuPosY*rpcBestCU->getPic()->getFrameWidthInCtus();
       
-      if(uiDepth >= depthMatrix[ctuPosY][ctuPosX]) { //limita aqui
+      float tempDepth = round(depthMatrix[ctuPosY][ctuPosX]);
+      
+      if(uiDepth == tempDepth) { //limita aqui
           splitCU = false;          
       }
-  }      
+  }    
   /*static float UPPER_BAND = 0.25;
     static float LOWER_BAND = 0.75;
     float frameHeight = rpcBestCU->getPic()->getFrameHeightInCtus()*64; //resolucao vertical do frame
     float posV = uiTPelY; //posicao vertical da CU atual
     float band = posV/frameHeight;
     if ( band <= UPPER_BAND || band >= LOWER_BAND ) {
-    if ( uiDepth == 0 ) 
-  	splitCU = false; 
-    if ( uiDepth == 1 )
-        splitCU = false;
-    if ( uiDepth == 2)
-        splitCU = false;
-    if ( uiDepth == 3 ) {
-        allow4x4 = false;
-        splitCU = false;
-    }
+        if ( uiDepth == 0 ) 
+            splitCU = false; 
+        if ( uiDepth == 1 )
+            splitCU = false;
+        if ( uiDepth == 2)
+            splitCU = false;
+        if ( uiDepth == 3 ) {
+            allow4x4 = false;
+            splitCU = false;
+        }
   }
   else {
     splitCU = true;

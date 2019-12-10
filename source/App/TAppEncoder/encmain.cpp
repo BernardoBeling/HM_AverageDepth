@@ -48,7 +48,7 @@
 // ====================================================================================================================
 // Main function
 // ====================================================================================================================
-int depthMatrix[100][200];
+float depthMatrix[100][200];
 
 int main(int argc, char* argv[])
 {  
@@ -107,12 +107,7 @@ int main(int argc, char* argv[])
 
   // destroy application encoder class
   cTAppEncTop.destroy();
-  for(int i=0;i<25;i++) {
-      cout << "\n";
-      for(int j=0;j<40;j++)
-          cout << depthMatrix[i][j];      
-  }
-  cout << "\n=================================" << endl;
+  
   return 0;
 }
 
