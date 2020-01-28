@@ -572,7 +572,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
       int ctuPosY = rpcBestCU->getCtuRsAddr()/rpcBestCU->getPic()->getFrameWidthInCtus(); 
       int ctuPosX = rpcBestCU->getCtuRsAddr()-ctuPosY*rpcBestCU->getPic()->getFrameWidthInCtus();
       
-      float tempDepth = round(depthMatrix[ctuPosY][ctuPosX]);
+      int tempDepth = roundDepth(depthMatrix[ctuPosY][ctuPosX]);
       
       if(uiDepth == tempDepth) { //limita aqui
           splitCU = false;          

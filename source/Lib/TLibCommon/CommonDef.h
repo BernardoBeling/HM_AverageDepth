@@ -246,7 +246,7 @@ static const Int MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS =           8 ;
 static const UInt LUMA_LEVEL_TO_DQP_LUT_MAXSIZE =                1024; ///< max LUT size for QP offset based on luma
 
 static const int semiGOP = 5;
-static const float roundConst = 0.5;
+static const float roundConst = 0.2;
 // ====================================================================================================================
 // Macro functions
 // ====================================================================================================================
